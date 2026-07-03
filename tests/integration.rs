@@ -1,41 +1,39 @@
-//! End-to-end tests of the public `run` orchestrator, exercised through the
-//! crate's public API only. These cover the no-network paths — the default
-//! branch, a missing config, and an unknown ecosystem key — so they are
-//! hermetic. Resolver network behavior is covered by the unit tests.
+//! End-to-end tests of the public `sync` and `verify` entry points, through the
+//! crate's public API only. These cover the no-network paths (default branch,
+//! missing config, unknown key) and the `verify` gate (clean vs. branch-pinned),
+//! so they are hermetic. Resolver network behavior is covered by unit tests.
 
 use std::fs;
 use std::path::Path;
 
-use sync_branch_deps::{reporters, run};
+use sync_branch_deps::{reporters, sync, verify};
 
 fn quiet() -> Box<dyn reporters::Reporter> {
     reporters::select(Some("quiet"))
 }
 
-/// On the default branch, sbd is a no-op even with a config present.
+const CONFIG: &str = "npm:\n  - \"@acme/lib\"\noci:\n  - ghcr.io/acme/svc\n";
+
+/// On the default branch, sync is a no-op even with a config present.
 #[test]
-fn no_op_on_default_branch() {
+fn sync_no_op_on_default_branch() {
     let dir = tempfile::tempdir().unwrap();
-    fs::write(
-        dir.path().join(".sync-branch-deps.yaml"),
-        "npm:\n  - \"@acme/lib\"\n",
-    )
-    .unwrap();
-    run(dir.path(), "main", "main", quiet().as_ref()).unwrap();
+    fs::write(dir.path().join(".sync-branch-deps.yaml"), CONFIG).unwrap();
+    sync(dir.path(), "main", "main", false, quiet().as_ref()).unwrap();
 }
 
-/// With no `.sync-branch-deps.yaml`, a feature branch is a no-op.
+/// With no config, a feature branch is a no-op.
 #[test]
-fn no_op_without_config() {
+fn sync_no_op_without_config() {
     let dir = tempfile::tempdir().unwrap();
-    run(dir.path(), "feat/x", "main", quiet().as_ref()).unwrap();
+    sync(dir.path(), "feat/x", "main", false, quiet().as_ref()).unwrap();
     assert!(!dir.path().join(".sync-branch-deps.yaml").exists());
 }
 
 /// A config key no resolver handles is warned and skipped — no network, no
 /// file changes.
 #[test]
-fn unknown_ecosystem_key_touches_nothing() {
+fn sync_unknown_ecosystem_key_touches_nothing() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(
         dir.path().join(".sync-branch-deps.yaml"),
@@ -45,9 +43,47 @@ fn unknown_ecosystem_key_touches_nothing() {
     let pkg = "{\n  \"dependencies\": {}\n}\n";
     fs::write(dir.path().join("package.json"), pkg).unwrap();
 
-    run(dir.path(), "feat/x", "main", quiet().as_ref()).unwrap();
+    sync(dir.path(), "feat/x", "main", false, quiet().as_ref()).unwrap();
 
     assert_eq!(read(dir.path(), "package.json"), pkg);
+}
+
+/// `verify` passes when declared coordinates are pinned to released versions.
+#[test]
+fn verify_passes_when_clean() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join(".sync-branch-deps.yaml"), CONFIG).unwrap();
+    fs::write(
+        dir.path().join("package.json"),
+        "{\n  \"dependencies\": { \"@acme/lib\": \"^1.2.0\" }\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("compose.yaml"),
+        "services:\n  svc:\n    image: ghcr.io/acme/svc:1.2.3\n",
+    )
+    .unwrap();
+
+    assert!(verify(dir.path(), quiet().as_ref()).unwrap());
+}
+
+/// `verify` fails when a branch pin is present in either manifest.
+#[test]
+fn verify_fails_on_branch_pins() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join(".sync-branch-deps.yaml"), CONFIG).unwrap();
+    fs::write(
+        dir.path().join("package.json"),
+        "{\n  \"dependencies\": { \"@acme/lib\": \"feat-x\" }\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("compose.yaml"),
+        "services:\n  svc:\n    image: ghcr.io/acme/svc:feat-x\n",
+    )
+    .unwrap();
+
+    assert!(!verify(dir.path(), quiet().as_ref()).unwrap());
 }
 
 fn read(root: &Path, name: &str) -> String {

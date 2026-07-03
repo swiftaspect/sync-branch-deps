@@ -4,20 +4,33 @@
 //! `SBD_OUTPUT=json`. Deliberately *not* a findings/test format (SARIF, JUnit):
 //! sbd reports progress, not code findings — see decisions/0008.
 
-use crate::reporters::{Level, Reporter};
+use crate::reporters::{Level, Location, Reporter};
 
 pub struct Json;
 
+fn level_str(level: Level) -> &'static str {
+    match level {
+        Level::Info => "info",
+        Level::Notice => "notice",
+        Level::Warn => "warn",
+        Level::Error => "error",
+    }
+}
+
 impl Reporter for Json {
     fn line(&self, level: Level, msg: &str) -> String {
-        let level = match level {
-            Level::Info => "info",
-            Level::Notice => "notice",
-            Level::Warn => "warn",
-            Level::Error => "error",
-        };
         // serde_json escapes the message; `preserve_order` keeps key order.
-        serde_json::json!({ "level": level, "message": msg }).to_string()
+        serde_json::json!({ "level": level_str(level), "message": msg }).to_string()
+    }
+
+    fn located(&self, level: Level, loc: &Location, msg: &str) -> String {
+        serde_json::json!({
+            "level": level_str(level),
+            "message": msg,
+            "file": loc.file,
+            "line": loc.line,
+        })
+        .to_string()
     }
 }
 

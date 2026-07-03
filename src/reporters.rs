@@ -23,12 +23,32 @@ pub enum Level {
     Error,
 }
 
+/// A source location for a diagnostic (e.g. a `verify` finding), so reporters
+/// can anchor it — a GitHub Actions annotation, a `file:line:` prefix, etc.
+pub struct Location<'a> {
+    pub file: &'a str,
+    pub line: Option<usize>,
+}
+
 pub trait Reporter {
     /// Render a line for `level`/`msg` (pure — no I/O, so it's unit-testable).
     fn line(&self, level: Level, msg: &str) -> String;
 
+    /// Render a *located* diagnostic. The default prefixes the message with
+    /// `file:line:`; CI reporters override this to emit real annotations.
+    fn located(&self, level: Level, loc: &Location, msg: &str) -> String {
+        let where_ = match loc.line {
+            Some(n) => format!("{}:{n}", loc.file),
+            None => loc.file.to_string(),
+        };
+        self.line(level, &format!("{where_}: {msg}"))
+    }
+
     fn report(&self, level: Level, msg: &str) {
         eprintln!("{}", self.line(level, msg));
+    }
+    fn report_located(&self, level: Level, loc: &Location, msg: &str) {
+        eprintln!("{}", self.located(level, loc, msg));
     }
     fn info(&self, msg: &str) {
         self.report(Level::Info, msg);

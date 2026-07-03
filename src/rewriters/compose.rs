@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-use crate::rewriters::Rewriter;
+use crate::rewriters::{Pin, Rewriter};
 
 pub struct Compose;
 
@@ -27,6 +27,45 @@ impl Rewriter for Compose {
         }
         Ok(changed)
     }
+
+    fn find_branch_pin(&self, root: &Path, target: &str) -> Result<Vec<Pin>> {
+        let pattern = format!(r#"image:\s*{}:([^\s'"]+)"#, regex::escape(target));
+        let re = regex::Regex::new(&pattern).context("building compose image regex")?;
+        let mut pins = Vec::new();
+        for path in compose_files(root)? {
+            let file = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+                .to_string();
+            for (i, line) in std::fs::read_to_string(&path)?.lines().enumerate() {
+                if let Some(cap) = re.captures(line) {
+                    let tag = &cap[1];
+                    if is_branch_tag(tag) {
+                        pins.push(Pin {
+                            file: file.clone(),
+                            line: Some(i + 1),
+                            reference: format!("{target}:{tag}"),
+                        });
+                    }
+                }
+            }
+        }
+        Ok(pins)
+    }
+}
+
+/// Whether an image tag is an in-flight branch reference rather than a released
+/// version. Released tags are numeric-dotted with an optional `v` (`1`, `1.2`,
+/// `1.2.3`, `v1.2.3`); a slug (`feat-x`) or a suffixed tag (`1.2.3-feat`,
+/// `1.2.3-<sha>`) is a branch reference.
+fn is_branch_tag(tag: &str) -> bool {
+    let core = tag.strip_prefix('v').unwrap_or(tag);
+    let released = !core.is_empty()
+        && core
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()));
+    !released
 }
 
 /// Every `compose*.{yaml,yml}` file in the repo root, sorted for deterministic
@@ -104,6 +143,16 @@ mod tests {
             "compose",
         ] {
             assert!(!is_compose_file(name), "{name} should not match");
+        }
+    }
+
+    #[test]
+    fn branch_tags_vs_released() {
+        for t in ["1", "1.2", "1.2.3", "v1.2.3"] {
+            assert!(!is_branch_tag(t), "{t} should be released");
+        }
+        for t in ["feat-x", "1.2.3-feat", "1.2.3-20260703T0000Z", "latest"] {
+            assert!(is_branch_tag(t), "{t} should be a branch tag");
         }
     }
 }

@@ -1,12 +1,11 @@
-//! `sbd` — the sync-branch-deps CLI. Run it from a consumer repo's root; it
-//! reads `.sync-branch-deps.yaml` and pins the repo's manifests to any sibling
-//! pre-release artifacts published for the current branch. This binary is a thin
-//! shell around the library, which holds the resolve/rewrite logic.
+//! `sbd` — the sync-branch-deps CLI. `sbd sync` resolves and pins branch
+//! dependencies; `sbd verify` is the PR gate. Run from a consumer repo's root.
+//! This binary is a thin shell around the library.
 
 use std::env;
-use std::process::Command;
+use std::process::Command as ProcCommand;
 
-use anyhow::{Context, Result};
+use sync_branch_deps::cli::{self, Command, Parsed};
 use sync_branch_deps::reporters::{self, Reporter};
 
 fn default_branch() -> String {
@@ -22,7 +21,7 @@ fn current_branch() -> String {
             return b;
         }
     }
-    if let Ok(out) = Command::new("git")
+    if let Ok(out) = ProcCommand::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
     {
@@ -36,30 +35,46 @@ fn current_branch() -> String {
     default_branch()
 }
 
-/// Output format from `--output <fmt>` / `--output=<fmt>`, else `$SBD_OUTPUT`,
-/// else auto-detected.
-fn output_choice() -> Option<String> {
-    let mut args = env::args().skip(1);
-    while let Some(arg) = args.next() {
-        if let Some(v) = arg.strip_prefix("--output=") {
-            return Some(v.to_string());
-        }
-        if arg == "--output" {
-            return args.next();
-        }
-    }
-    env::var("SBD_OUTPUT").ok()
-}
-
 fn main() {
-    let reporter = reporters::select(output_choice().as_deref());
-    if let Err(e) = run(reporter.as_ref()) {
-        reporter.error(&format!("{e:#}"));
-        std::process::exit(1);
+    let args: Vec<String> = env::args().skip(1).collect();
+    match cli::parse(&args) {
+        Parsed::Help => println!("{}", cli::USAGE),
+        Parsed::Usage(msg) => {
+            eprintln!("sbd: {msg}\n\n{}", cli::USAGE);
+            std::process::exit(2);
+        }
+        Parsed::Run(inv) => {
+            let reporter = reporters::select(inv.output.as_deref());
+            std::process::exit(run(inv.command, reporter.as_ref()));
+        }
     }
 }
 
-fn run(reporter: &dyn Reporter) -> Result<()> {
-    let root = env::current_dir().context("resolving working directory")?;
-    sync_branch_deps::run(&root, &current_branch(), &default_branch(), reporter)
+fn run(command: Command, reporter: &dyn Reporter) -> i32 {
+    let root = match env::current_dir() {
+        Ok(r) => r,
+        Err(e) => {
+            reporter.error(&format!("resolving working directory: {e}"));
+            return 1;
+        }
+    };
+    let clean = match command {
+        Command::Sync { dry_run } => sync_branch_deps::sync(
+            &root,
+            &current_branch(),
+            &default_branch(),
+            dry_run,
+            reporter,
+        )
+        .map(|()| true),
+        Command::Verify => sync_branch_deps::verify(&root, reporter),
+    };
+    match clean {
+        Ok(true) => 0,
+        Ok(false) => 1, // verify found branch pins
+        Err(e) => {
+            reporter.error(&format!("{e:#}"));
+            1
+        }
+    }
 }
