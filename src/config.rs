@@ -21,7 +21,7 @@ pub struct Config {
     pub entries: BTreeMap<String, Vec<String>>,
     /// Keys whose value wasn't a list of targets (a scalar from a newer schema,
     /// or a typo). Kept so the orchestrator can warn instead of the parse
-    /// hard-failing — see decisions/0009.
+    /// hard-failing — see decisions/0010.
     pub ignored: Vec<String>,
 }
 
@@ -35,7 +35,7 @@ impl Config {
         // Forward-compat: an ecosystem maps to a list of targets. A value of any
         // other shape (a scalar, a map, or an added scalar schema key like
         // `version: 2`) can't be acted on, so it's recorded for the orchestrator
-        // to warn about rather than hard-failing the run — see decisions/0009.
+        // to warn about rather than hard-failing the run — see decisions/0010.
         // `raw` is sorted, so `entries` and `ignored` stay sorted too.
         let mut config = Config::default();
         for (key, value) in raw.unwrap_or_default() {
