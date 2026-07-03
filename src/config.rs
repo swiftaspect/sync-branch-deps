@@ -27,7 +27,10 @@ pub struct Config {
 
 impl Config {
     pub fn parse(yaml: &str) -> Result<Config> {
-        let raw: BTreeMap<String, serde_yaml::Value> =
+        // `Option` so a document with no mapping — empty, whitespace-only,
+        // comment-only, or a bare `null`/`~` — is an empty config (a no-op),
+        // not a parse error.
+        let raw: Option<BTreeMap<String, serde_yaml::Value>> =
             serde_yaml::from_str(yaml).context("parsing .sync-branch-deps.yaml")?;
         // Forward-compat: an ecosystem maps to a list of targets. A value of any
         // other shape (a scalar, a map, or an added scalar schema key like
@@ -35,7 +38,7 @@ impl Config {
         // to warn about rather than hard-failing the run — see decisions/0009.
         // `raw` is sorted, so `entries` and `ignored` stay sorted too.
         let mut config = Config::default();
-        for (key, value) in raw {
+        for (key, value) in raw.unwrap_or_default() {
             match serde_yaml::from_value::<Vec<String>>(value) {
                 Ok(targets) => {
                     config.entries.insert(key, targets);
@@ -64,6 +67,18 @@ mod tests {
     #[test]
     fn empty_config_is_empty() {
         assert!(Config::parse("{}").unwrap().entries.is_empty());
+    }
+
+    #[test]
+    fn blank_and_null_documents_are_empty() {
+        // A document with no mapping is a no-op, never a parse error.
+        for doc in ["", "   \n", "# only a comment\n", "null\n", "~\n"] {
+            let cfg = Config::parse(doc).unwrap_or_else(|e| panic!("{doc:?}: {e:#}"));
+            assert!(
+                cfg.entries.is_empty() && cfg.ignored.is_empty(),
+                "doc: {doc:?}"
+            );
+        }
     }
 
     #[test]
