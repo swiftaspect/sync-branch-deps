@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/swiftaspect/sync-branch-deps/compare/v0.1.0...v0.1.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* **build:** build dist binary for BINARY_TARGET instead of mislabeling the native one ([5255f84](https://github.com/swiftaspect/sync-branch-deps/commit/5255f84c74e82daccca91341f4988744898cd114))
+
 ## 0.1.0 (2026-07-03)
 
 
