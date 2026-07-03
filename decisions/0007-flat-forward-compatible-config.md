@@ -1,10 +1,14 @@
 ---
-status: accepted
+status: superseded by ADR-0009
 date: 2026-07-03
 decision-makers: [Team]
 ---
 
 # `.sync-branch-deps.yaml`: a flat, ecosystem-keyed map; unknown keys warn, not fail
+
+> Superseded by [0009](0009-config-ignores-unusable-values.md): the flat map is
+> kept, but non-list values are set aside and warned instead of hard-failing the
+> parse — closing a forward-compat gap this decision left open.
 
 ## Context and Problem Statement
 
