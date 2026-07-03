@@ -86,6 +86,40 @@ fn verify_fails_on_branch_pins() {
     assert!(!verify(dir.path(), quiet().as_ref()).unwrap());
 }
 
+/// `verify` must catch a branch pin even when the compose image value is quoted
+/// — quoting is valid YAML and previously slipped through the gate.
+#[test]
+fn verify_fails_on_quoted_branch_pin() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join(".sync-branch-deps.yaml"), CONFIG).unwrap();
+    fs::write(
+        dir.path().join("compose.yaml"),
+        "services:\n  svc:\n    image: \"ghcr.io/acme/svc:feat-x\"\n",
+    )
+    .unwrap();
+
+    assert!(!verify(dir.path(), quiet().as_ref()).unwrap());
+}
+
+/// A `base_image:` field and a commented-out image line must not be mistaken
+/// for a service image, so an otherwise-released repo still passes the gate.
+#[test]
+fn verify_ignores_non_image_keys_and_comments() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join(".sync-branch-deps.yaml"),
+        "oci:\n  - ghcr.io/acme/svc\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("compose.yaml"),
+        "services:\n  svc:\n    image: ghcr.io/acme/svc:1.2.3\n    base_image: ghcr.io/acme/svc:feat-x\n    # image: ghcr.io/acme/svc:feat-x\n",
+    )
+    .unwrap();
+
+    assert!(verify(dir.path(), quiet().as_ref()).unwrap());
+}
+
 fn read(root: &Path, name: &str) -> String {
     fs::read_to_string(root.join(name)).unwrap()
 }
