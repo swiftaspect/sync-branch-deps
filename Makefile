@@ -73,18 +73,21 @@ build: ## Build the release binary (target/release/sbd)
 # `cargo install` support (needs a crates.io token + an available crate name).
 
 DIST_DIR ?= dist
-# Target triple for the published binary. Default is the image's native
-# glibc target; override to e.g. x86_64-unknown-linux-musl for a fully static
-# build (that also needs musl-tools + the musl target in the image).
+# Target triple for the published binary. `dist` builds for this triple
+# explicitly and stages the result as sbd-<triple>. Default is the image's
+# native glibc target; override to e.g. x86_64-unknown-linux-musl for a fully
+# static build — the target's std is added automatically, but musl also needs
+# musl-tools (musl-gcc) present in the image.
 BINARY_TARGET ?= x86_64-unknown-linux-gnu
 # The release to attach binaries to. CI passes the tag via GITHUB_REF_NAME.
 RELEASE_TAG ?= $(GITHUB_REF_NAME)
 
 .PHONY: dist
 dist: ## Build the release binary and stage it under dist/
-	$(BASE_COMMAND) sh -c "cargo build --release \
+	$(BASE_COMMAND) sh -c "rustup target add $(BINARY_TARGET) \
+		&& cargo build --release --target $(BINARY_TARGET) \
 		&& mkdir -p $(DIST_DIR) \
-		&& cp target/release/sbd $(DIST_DIR)/sbd-$(BINARY_TARGET)"
+		&& cp target/$(BINARY_TARGET)/release/sbd $(DIST_DIR)/sbd-$(BINARY_TARGET)"
 
 .PHONY: publish
 publish: publish-binary publish-container ## Publish release artifacts (binary + container image)
