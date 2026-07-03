@@ -24,12 +24,15 @@ jobs:
       - name: Set up QEMU (for arm64 emulation)
         uses: docker/setup-qemu-action@v3
 
+      # `make publish` builds and pushes with podman (podman-specific
+      # `build --manifest` and `manifest push --all … docker://…`, which docker
+      # does not implement), so authenticate podman directly. Logging in with
+      # docker instead only works because podman falls back to reading
+      # ~/.docker/config.json — this makes the auth explicit and deterministic.
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.2.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Publish binary + multi-arch container
         env:
