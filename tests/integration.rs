@@ -120,6 +120,24 @@ fn verify_ignores_non_image_keys_and_comments() {
     assert!(verify(dir.path(), quiet().as_ref()).unwrap());
 }
 
+/// A key whose value isn't a list of targets (a newer schema's scalar, or a
+/// typo) is warned and ignored — sync still succeeds and touches nothing.
+#[test]
+fn sync_non_list_value_touches_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join(".sync-branch-deps.yaml"),
+        "version: 2\nnpm: not-a-list\n",
+    )
+    .unwrap();
+    let pkg = "{\n  \"dependencies\": {}\n}\n";
+    fs::write(dir.path().join("package.json"), pkg).unwrap();
+
+    sync(dir.path(), "feat/x", "main", false, quiet().as_ref()).unwrap();
+
+    assert_eq!(read(dir.path(), "package.json"), pkg);
+}
+
 fn read(root: &Path, name: &str) -> String {
     fs::read_to_string(root.join(name)).unwrap()
 }

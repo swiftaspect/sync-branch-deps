@@ -123,7 +123,11 @@ fn load_config(root: &Path, reporter: &dyn Reporter) -> Result<Option<config::Co
         reporter.info(&format!("{} absent — nothing to do", config::CONFIG_FILE));
         return Ok(None);
     }
-    Ok(Some(config::Config::parse(&std::fs::read_to_string(
-        &path,
-    )?)?))
+    let config = config::Config::parse(&std::fs::read_to_string(&path)?)?;
+    // A value that isn't a list of targets can't be acted on; surface each so a
+    // forward-compat scalar or a typo is visible rather than silently ignored.
+    for key in &config.ignored {
+        reporter.warn(&format!("{key}: not a list of targets — ignoring"));
+    }
+    Ok(Some(config))
 }
