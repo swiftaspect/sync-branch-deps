@@ -29,8 +29,7 @@ impl Rewriter for Compose {
     }
 
     fn find_branch_pin(&self, root: &Path, target: &str) -> Result<Vec<Pin>> {
-        let pattern = format!(r#"image:\s*{}:([^\s'"]+)"#, regex::escape(target));
-        let re = regex::Regex::new(&pattern).context("building compose image regex")?;
+        let re = image_regex(target)?;
         let mut pins = Vec::new();
         for path in compose_files(root)? {
             let file = path
@@ -40,7 +39,7 @@ impl Rewriter for Compose {
                 .to_string();
             for (i, line) in std::fs::read_to_string(&path)?.lines().enumerate() {
                 if let Some(cap) = re.captures(line) {
-                    let tag = &cap[1];
+                    let tag = &cap[2];
                     if is_branch_tag(tag) {
                         pins.push(Pin {
                             file: file.clone(),
@@ -91,11 +90,29 @@ fn is_compose_file(name: &str) -> bool {
     name.starts_with("compose") && (name.ends_with(".yaml") || name.ends_with(".yml"))
 }
 
+/// Regex for an `image:` value whose repository part is `prefix`, capturing the
+/// tag. Shared by [`rewrite`] and [`Compose::find_branch_pin`] so pin and gate
+/// agree on what an image reference is. It is anchored to `image:` as a
+/// line-leading mapping key (after indentation and an optional `- ` list
+/// marker), so it never matches inside another key like `base_image:` or a
+/// `# image: …` comment, and it consumes an optional surrounding quote so
+/// `image: "prefix:tag"` (valid, common YAML) is matched too. Group 1 is the
+/// text a rewrite must keep (up to and including the prefix); group 2 is the
+/// tag. Flow-style mappings (`{image: x}`) are intentionally not matched — block
+/// style is universal for Compose. The tag class stops before a closing quote,
+/// so a rewrite of a quoted value leaves the quote intact.
+fn image_regex(prefix: &str) -> Result<regex::Regex> {
+    let pattern = format!(
+        r#"(?m)^(\s*(?:-\s+)?image:\s*["']?{}):([^\s'"]+)"#,
+        regex::escape(prefix)
+    );
+    regex::Regex::new(&pattern).context("building compose image regex")
+}
+
 /// Rewrite `image: <prefix>:<anytag>` to `<prefix>:<tag>`. Returns the new
 /// content if anything changed.
 fn rewrite(content: &str, image_prefix: &str, tag: &str) -> Result<Option<String>> {
-    let pattern = format!(r#"(image:\s*{}):[^\s'"]+"#, regex::escape(image_prefix));
-    let re = regex::Regex::new(&pattern).context("building compose image regex")?;
+    let re = image_regex(image_prefix)?;
     let replaced = re.replace_all(content, format!("${{1}}:{tag}").as_str());
     if replaced == content {
         Ok(None)
@@ -124,6 +141,36 @@ mod tests {
         assert!(rewrite(input, "ghcr.io/acme/service", "feat-x")
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn rewrites_quoted_image_and_preserves_quotes() {
+        for input in [
+            "    image: \"ghcr.io/acme/service:1.1.4\"\n",
+            "    image: 'ghcr.io/acme/service:1.1.4'\n",
+        ] {
+            let out = rewrite(input, "ghcr.io/acme/service", "feat-x")
+                .unwrap()
+                .unwrap();
+            let q = input.chars().find(|c| *c == '"' || *c == '\'').unwrap();
+            assert!(
+                out.contains(&format!("image: {q}ghcr.io/acme/service:feat-x{q}")),
+                "quote {q} should survive: {out}"
+            );
+        }
+    }
+
+    #[test]
+    fn ignores_substring_keys_and_comments() {
+        // Only the real `image:` mapping key is rewritten; a `base_image:` field
+        // and a commented-out image line are left untouched.
+        let input = "services:\n  a:\n    image: ghcr.io/acme/service:1.1.4\n    base_image: ghcr.io/acme/service:1.0.0\n    # image: ghcr.io/acme/service:old\n";
+        let out = rewrite(input, "ghcr.io/acme/service", "feat-x")
+            .unwrap()
+            .unwrap();
+        assert!(out.contains("    image: ghcr.io/acme/service:feat-x"));
+        assert!(out.contains("base_image: ghcr.io/acme/service:1.0.0"));
+        assert!(out.contains("# image: ghcr.io/acme/service:old"));
     }
 
     #[test]
