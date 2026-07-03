@@ -19,6 +19,19 @@ pub trait Rewriter {
     /// Pin references to `target` to `slug` in this repo's files of this kind.
     /// Returns whether anything changed. A repo without the relevant files → `Ok(false)`.
     fn rewrite(&self, root: &Path, target: &str, slug: &str) -> Result<bool>;
+
+    /// Find any branch / pre-release pin of `target` in this repo's files of
+    /// this kind (empty = clean). Powers the `verify` gate.
+    fn find_branch_pin(&self, root: &Path, target: &str) -> Result<Vec<Pin>>;
+}
+
+/// A branch / pre-release reference found by `verify`, carried with its location
+/// so reporters can annotate it (e.g. a GitHub Actions `file`/`line` annotation).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Pin {
+    pub file: String,
+    pub line: Option<usize>,
+    pub reference: String,
 }
 
 /// Every rewriter the binary knows about.

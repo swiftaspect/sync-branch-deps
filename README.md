@@ -21,10 +21,10 @@ You maintain several repos — a shared library, a couple of services, some cont
 The convention is: **when a feature spans repos, use the same branch name in each.** Then three pieces cooperate:
 
 1. **Publish on branch.** Each repo's CI, on a non-`main` branch, publishes a *branch-tagged pre-release* to a registry — an npm dist-tag named after the branch, and/or a container image tagged with the branch slug. These are registry artifacts only; **no GitHub Release, no git tag**.
-2. **Resolve locally (`sbd`).** In a consumer repo on the same branch, you run `sbd`. It reads `.sync-branch-deps.yaml`, checks each declared sibling for a matching branch artifact, and rewrites your `package.json` dep and/or compose image tag to point at it. Missing match → skipped. It never runs in CI — CI just tests whatever is committed.
-3. **Gate on merge.** A PR gate rejects any branch/pre-release sibling reference before it can merge to `main`. You revert to released versions; the gate enforces it.
+2. **Resolve locally (`sbd sync`).** In a consumer repo on the same branch, you run `sbd sync`. It reads `.sync-branch-deps.yaml`, checks each declared sibling for a matching branch artifact, and rewrites your `package.json` dep and/or compose image tag to point at it. Missing match → skipped.
+3. **Gate on merge (`sbd verify`).** `sbd verify` rejects any branch/pre-release sibling reference before it can merge to `main` — it scans the manifests and exits non-zero if a branch pin remains (with GitHub Actions annotations when run there). You revert to released versions; the gate enforces it.
 
-`sbd` is piece #2. (Pieces #1 and #3 live in your CI.)
+`sbd` covers pieces **#2 and #3** (`sync` and `verify`). Piece #1 (publish-on-branch) is your CI's publishing step — `make publish` or equivalent — not part of this tool.
 
 ## Branch → slug
 
@@ -56,21 +56,24 @@ A repo that lists only `images:` never needs npm present. Image prefixes work ag
 
 ## Usage
 
-Run it from a consumer repo's root:
+Two subcommands, run from a consumer repo's root (bare `sbd` prints usage):
 
 ```console
-$ sbd
+$ sbd sync                 # resolve branch artifacts and pin them
 sbd: branch=feat/new-types sanitized=feat-new-types
-sbd:   @your-org/shared-lib: pinned to dist-tag 'feat-new-types' (resolved 0.4.0-feat-new-types.7)
-sbd:   ghcr.io/your-org/service: no branch tag 'feat-new-types' — skipping
+sbd:   @your-org/shared-lib: pinned to 'feat-new-types' (resolved 0.4.0-feat-new-types.7)
+sbd:   ghcr.io/your-org/service: no 'feat-new-types' — skipping
+
+$ sbd sync --dry-run       # show what would be pinned, without writing
+$ sbd verify               # PR gate: exit non-zero if any branch pin remains
 ```
 
-- On `main` (or a detached `HEAD`, or with no config) it is a **no-op**.
-- A registry *miss* (no artifact for this branch) is skipped quietly.
-- A registry *lookup failure* (network/auth error) is a hard error — a miss and a failure are different things.
-- If `package.json` changed, it runs `npm install`.
+- `sync` on `main` (or a detached `HEAD`, or with no config) is a **no-op**.
+- A registry *miss* is skipped quietly; a *lookup failure* (network/auth) is a hard error — a miss and a failure are different things.
+- `sbd` only resolves and rewrites — it **never runs a package manager**. After `sync`, run your own install to refresh the lockfile.
+- `verify` reports each offending pin with its file and line; under GitHub Actions it emits `::error` annotations that land inline on the diff.
 
-Environment: `CURRENT_BRANCH` overrides branch detection (CI passes it when git isn't available); `DEFAULT_BRANCH` overrides `main`.
+Output auto-detects (plain locally, GitHub Actions commands in CI); force it with `--output <plain|color|github|json|quiet>` or `$SBD_OUTPUT`. `CURRENT_BRANCH` overrides branch detection; `DEFAULT_BRANCH` overrides `main`.
 
 ## Install
 
