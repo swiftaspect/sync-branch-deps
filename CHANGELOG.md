@@ -1,0 +1,17 @@
+# Changelog
+
+## 0.1.0 (2026-07-03)
+
+
+### Features
+
+* add sync/verify subcommands with located output ([fe34da5](https://github.com/swiftaspect/sync-branch-deps/commit/fe34da579f6ab1c4f3a18087f5ef652d689813af))
+* initial sync-branch-deps implementation ([38a8436](https://github.com/swiftaspect/sync-branch-deps/commit/38a8436be31158dd83c16d7fb09ac2ad0f8c8444))
+
+
+### Bug Fixes
+
+* **compose:** match quoted images and anchor image: key in pin and verify ([97df47c](https://github.com/swiftaspect/sync-branch-deps/commit/97df47c9b1bef746b456913627097156d9dd4c5e))
+* **config:** tolerate and warn on non-list values instead of hard-failing ([db06d56](https://github.com/swiftaspect/sync-branch-deps/commit/db06d569389903b43048e3c33577aebf839dff7e))
+* **config:** treat a bare null/empty document as an empty config ([f5923df](https://github.com/swiftaspect/sync-branch-deps/commit/f5923df83a330f84f79a765e73937aa168578bbd))
+* **package-json:** stop verify mis-classifying protocol deps and numeric pre-releases ([0e2e00d](https://github.com/swiftaspect/sync-branch-deps/commit/0e2e00d6fe5a2a0aef31d465b66e606c050ecd99))
