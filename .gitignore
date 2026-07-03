@@ -1,0 +1,7 @@
+# Rust build artifacts
+/target
+/dist
+**/*.rs.bk
+
+# Local, uncommitted make overrides (.config.include.mk IS committed)
+/local.include.mk

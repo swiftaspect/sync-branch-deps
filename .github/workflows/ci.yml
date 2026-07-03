@@ -1,0 +1,29 @@
+name: Testing
+
+on:
+  push:
+    branches-ignore:
+      - 'release-please*'
+  pull_request:
+    branches:
+      - main
+
+# Cancel superseded in-progress runs on feature branches; main runs to completion.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  checks: write
+  contents: read
+  packages: write
+  pull-requests: write
+
+jobs:
+  ci:
+    # sbd has no sibling branch deps to gate or publish, so this just runs
+    # `make check` (fmt + clippy + tests, in a container).
+    uses: swiftaspect/gha-workflows/.github/workflows/ci.yml@v1.5.0
+    with:
+      makefile-override-file: .github/ci.override.mk
+    secrets: inherit
