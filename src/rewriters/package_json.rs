@@ -57,16 +57,30 @@ impl Rewriter for PackageJson {
 }
 
 /// Whether a dependency value is an in-flight branch reference rather than a
-/// released semver range. Released values are ranges (`^1.2.3`, `~1.2`, `1.2.3`,
-/// `*`, …); a bare dist-tag/slug (`feat-x`, `latest`) or a pre-release
-/// (`1.2.0-feat.7`) is a branch reference.
+/// released, mergeable state. Branch references are the bare dist-tag/slug this
+/// tool pins (`feat-x`, `latest`) or a semver pre-release (`1.2.0-feat.7`,
+/// `1.2.0-7`). Released semver ranges (`^1.2.3`, `~1.2`, `1.2.3`, `*`) are not,
+/// and neither are explicit protocol/path specifiers (`workspace:*`,
+/// `file:../lib`, `link:../lib`, `git+https://…`, `github:org/repo`, `npm:`
+/// aliases, URL tarballs) — those are intentional and are never a dist-tag pin
+/// sbd writes. (A hand-authored git ref that happens to point at a branch, e.g.
+/// `github:org/repo#feat`, is out of scope: sbd manages dist-tag pins, not git
+/// refs, and flagging every `workspace:`/`file:` dep would be worse.)
 fn is_branch_ref(value: &str) -> bool {
+    // Protocol / path / URL specifiers carry a ':' or '/'; a dist-tag/slug or a
+    // semver pre-release never does. Treat those as intentional, not a pin.
+    if value.contains(':') || value.contains('/') {
+        return false;
+    }
     let first = value.chars().next().unwrap_or(' ');
     let is_range = first.is_ascii_digit() || matches!(first, '^' | '~' | '>' | '<' | '=' | '*');
+    // A '-' immediately after a digit marks a semver pre-release (`1.2.0-feat`,
+    // `1.2.0-7`); this excludes hyphen ranges (`1.2.3 - 2.0.0`), whose '-' is
+    // space-separated from the version.
     let is_prerelease = value
         .as_bytes()
         .windows(2)
-        .any(|w| w[0] == b'-' && (w[1] as char).is_ascii_alphabetic());
+        .any(|w| w[0].is_ascii_digit() && w[1] == b'-');
     !is_range || is_prerelease
 }
 
@@ -137,6 +151,33 @@ mod tests {
         for v in ["feat-x", "latest", "feat-new-types", "1.2.0-feat.7"] {
             assert!(is_branch_ref(v), "{v} should be a branch ref");
         }
+    }
+
+    #[test]
+    fn protocol_specifiers_are_not_branch_refs() {
+        // Explicit workspace / path / git / alias / URL deps are intentional,
+        // not branch pins — the gate must not flag them.
+        for v in [
+            "workspace:*",
+            "workspace:^1.2.0",
+            "file:../lib",
+            "link:../lib",
+            "git+https://github.com/org/repo.git",
+            "github:org/repo#v1.2.3",
+            "npm:@acme/lib@1.2.3",
+            "https://example.com/lib-1.2.3.tgz",
+        ] {
+            assert!(!is_branch_ref(v), "{v} should not be a branch ref");
+        }
+    }
+
+    #[test]
+    fn numeric_prereleases_are_branch_refs() {
+        for v in ["1.2.0-7", "1.2.0-20260703", "1.2.0-0"] {
+            assert!(is_branch_ref(v), "{v} should be a branch ref");
+        }
+        // A hyphen range (spaces around '-') is a released range, not a pin.
+        assert!(!is_branch_ref("1.2.3 - 2.0.0"));
     }
 
     #[test]
