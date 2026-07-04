@@ -73,7 +73,7 @@ $ sbd verify               # PR gate: exit non-zero if any branch pin remains
 - `sbd` only resolves and rewrites — it **never runs a package manager**. After `sync`, run your own install to refresh the lockfile.
 - `verify` reports each offending pin with its file and line; under GitHub Actions it emits `::error` annotations that land inline on the diff.
 
-Output auto-detects (plain locally, GitHub Actions commands in CI); force it with `--output <plain|color|github|json|quiet>` or `$SBD_OUTPUT`. `CURRENT_BRANCH` overrides branch detection; `DEFAULT_BRANCH` overrides `main`.
+Output auto-detects (plain locally, GitHub Actions commands in CI); force it with `--output <plain|color|github|json|quiet>` or `$SBD_OUTPUT`. The branch is detected as `$CURRENT_BRANCH`, else the `git` binary, else `.git/HEAD` read directly (so it works in a minimal container with no `git`), else `$DEFAULT_BRANCH` (default `main`); set `CURRENT_BRANCH` to override.
 
 ## Authentication
 

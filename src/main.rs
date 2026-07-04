@@ -3,36 +3,49 @@
 //! This binary is a thin shell around the library.
 
 use std::env;
+use std::path::Path;
 use std::process::Command as ProcCommand;
 
 use sync_branch_deps::cli::{self, Command, Parsed};
+use sync_branch_deps::git;
 use sync_branch_deps::reporters::{self, Reporter};
 
 fn default_branch() -> String {
     env::var("DEFAULT_BRANCH").unwrap_or_else(|_| "main".to_string())
 }
 
-/// Current branch: `$CURRENT_BRANCH` (CI passes it when git isn't available in
-/// the container), else `git rev-parse`, else the default branch.
-fn current_branch() -> String {
+/// Current branch, in order of authority: `$CURRENT_BRANCH` (explicit override),
+/// then the `git` binary (authoritative, ref-backend-agnostic — used wherever
+/// git is on `PATH`), then `.git/HEAD` read directly (the fallback for a minimal
+/// container with no git), then the default branch.
+fn current_branch(root: &Path) -> String {
     if let Ok(b) = env::var("CURRENT_BRANCH") {
         let b = b.trim().to_string();
         if !b.is_empty() {
             return b;
         }
     }
-    if let Ok(out) = ProcCommand::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .output()
-    {
-        if out.status.success() {
-            let b = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !b.is_empty() {
-                return b;
-            }
-        }
+    if let Some(b) = git_binary_branch() {
+        return b;
+    }
+    if let Some(b) = git::head_branch(root) {
+        return b;
     }
     default_branch()
+}
+
+/// `git rev-parse --abbrev-ref HEAD`, or `None` if git isn't on `PATH`, the call
+/// fails, or HEAD is detached (`abbrev-ref` reports `HEAD`).
+fn git_binary_branch() -> Option<String> {
+    let out = ProcCommand::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let branch = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!branch.is_empty() && branch != "HEAD").then_some(branch)
 }
 
 fn main() {
@@ -61,7 +74,7 @@ fn run(command: Command, reporter: &dyn Reporter) -> i32 {
     let clean = match command {
         Command::Sync { dry_run } => sync_branch_deps::sync(
             &root,
-            &current_branch(),
+            &current_branch(&root),
             &default_branch(),
             dry_run,
             reporter,
