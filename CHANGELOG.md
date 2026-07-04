@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/swiftaspect/sync-branch-deps/compare/v0.2.0...v0.3.0) (2026-07-04)
+
+
+### Features
+
+* **git:** detect the branch from .git/HEAD when no git binary is present ([fa96b78](https://github.com/swiftaspect/sync-branch-deps/commit/fa96b789628ff8c9512f296f174ec8ad780922a9))
+
 ## [0.2.0](https://github.com/swiftaspect/sync-branch-deps/compare/v0.1.1...v0.2.0) (2026-07-04)
 
 
