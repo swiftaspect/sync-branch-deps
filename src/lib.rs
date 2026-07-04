@@ -10,6 +10,7 @@
 
 pub mod cli;
 pub mod config;
+pub mod git;
 pub mod reporters;
 pub mod resolvers;
 pub mod rewriters;
