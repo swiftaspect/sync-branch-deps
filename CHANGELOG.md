@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/swiftaspect/sync-branch-deps/compare/v0.1.1...v0.2.0) (2026-07-04)
+
+
+### Features
+
+* **oci:** authenticate private registry lookups from standard credential sources ([75146f4](https://github.com/swiftaspect/sync-branch-deps/commit/75146f48d72af962d73d0b405a8c070ee7f3350d))
+
 ## [0.1.1](https://github.com/swiftaspect/sync-branch-deps/compare/v0.1.0...v0.1.1) (2026-07-03)
 
 
