@@ -75,6 +75,13 @@ $ sbd verify               # PR gate: exit non-zero if any branch pin remains
 
 Output auto-detects (plain locally, GitHub Actions commands in CI); force it with `--output <plain|color|github|json|quiet>` or `$SBD_OUTPUT`. `CURRENT_BRANCH` overrides branch detection; `DEFAULT_BRANCH` overrides `main`.
 
+## Authentication
+
+Branch artifacts are usually **private**, so resolution needs credentials. `sbd` reads them from the standard places for each ecosystem — no tool-specific variables:
+
+- **npm** — the registry and token come from `.npmrc` (project, then user), including `${VAR}` expansion. A scoped registry with `//host/:_authToken=${NPM_TOKEN}` and `NPM_TOKEN` in the environment is the usual setup.
+- **OCI images** — a per-host HTTP Basic credential from the standard OCI credential sources, in order: `$REGISTRY_AUTH_FILE`, then an inline `$DOCKER_AUTH_CONFIG` (the common CI convention), then the default auth files (`$XDG_RUNTIME_DIR/containers/auth.json`, `$DOCKER_CONFIG/config.json`, `~/.config/containers/auth.json`, `~/.docker/config.json`). In short: **being logged in to the registry is enough**; in CI, set `DOCKER_AUTH_CONFIG`. With no credential found, lookups stay anonymous and only public images resolve.
+
 ## Install
 
 Download the binary for your platform from the [latest release](https://github.com/swiftaspect/sync-branch-deps/releases) and put it on your `PATH` as `sbd`. (A `cargo install` path may follow.)
