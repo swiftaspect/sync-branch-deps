@@ -3,9 +3,10 @@
 //! follows the registry's `WWW-Authenticate: Bearer` challenge for a token.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
+use serde_json::Value;
 
 use crate::resolvers::Resolver;
 
@@ -86,7 +87,8 @@ fn tag_exists(image_prefix: &str, tag: &str) -> Result<bool> {
         Ok(_) => Ok(true),
         Err(ureq::Error::Status(404, _)) => Ok(false),
         Err(ureq::Error::Status(401, resp)) => {
-            let token = bearer_token(&resp).with_context(|| format!("authenticating to {host}"))?;
+            let token =
+                bearer_token(&resp, &host).with_context(|| format!("authenticating to {host}"))?;
             match head(&url, Some(&token)) {
                 Ok(_) => Ok(true),
                 Err(ureq::Error::Status(404, _)) => Ok(false),
@@ -113,7 +115,7 @@ fn head(url: &str, token: Option<&str>) -> std::result::Result<ureq::Response, u
     req.call()
 }
 
-fn bearer_token(resp: &ureq::Response) -> Result<String> {
+fn bearer_token(resp: &ureq::Response, host: &str) -> Result<String> {
     let challenge = resp
         .header("WWW-Authenticate")
         .context("registry returned 401 without a WWW-Authenticate challenge")?;
@@ -132,7 +134,16 @@ fn bearer_token(resp: &ureq::Response) -> Result<String> {
             sep = '&';
         }
     }
-    let body = ureq::get(&url)
+    // Present registry credentials to the authorization server so it issues a
+    // *scoped* token. A branch-dep workflow resolves mostly private images, for
+    // which an anonymous token carries no pull scope — the manifest HEAD would
+    // then 401 again. With no credential configured we stay anonymous, which
+    // still resolves public images. See credential source order in `credential_for`.
+    let mut req = ureq::get(&url);
+    if let Some(cred) = credential_for(host) {
+        req = req.set("Authorization", &format!("Basic {cred}"));
+    }
+    let body = req
         .call()
         .context("requesting registry token")?
         .into_string()?;
@@ -143,6 +154,95 @@ fn bearer_token(resp: &ureq::Response) -> Result<String> {
         .and_then(|v| v.as_str())
         .map(str::to_string)
         .context("token response missing 'token'/'access_token'")
+}
+
+/// Resolve a per-host HTTP Basic credential from the standard, runtime-agnostic
+/// OCI credential sources, in precedence order:
+///
+/// 1. `$REGISTRY_AUTH_FILE` — an explicit path to an auth document;
+/// 2. `$DOCKER_AUTH_CONFIG` — an auth document passed *inline* (the common CI
+///    convention for handing registry creds to a job without a file on disk);
+/// 3. the default auth-file locations a registry login writes to
+///    (`$XDG_RUNTIME_DIR/containers/auth.json`, `$DOCKER_CONFIG/config.json`,
+///    `~/.config/containers/auth.json`, `~/.docker/config.json`).
+///
+/// These env vars and paths are cross-tool conventions (their names are fixed by
+/// history, not by any one engine). Every source stores the credential the same
+/// way — a base64(`user:pass`) blob under `auths.<host>.auth`, which is exactly
+/// an HTTP Basic value — so nothing is decoded or re-encoded. Absence leaves the
+/// caller anonymous (fine for public images). See `decisions/0011`.
+fn credential_for(host: &str) -> Option<String> {
+    auth_documents()
+        .into_iter()
+        .find_map(|doc| credential_from_auth_json(&doc, host))
+}
+
+/// The auth documents to search, highest precedence first: an explicitly pointed
+/// file, then the inline `$DOCKER_AUTH_CONFIG`, then the default auth files.
+fn auth_documents() -> Vec<String> {
+    let mut docs = Vec::new();
+    if let Some(path) = non_empty(std::env::var("REGISTRY_AUTH_FILE").ok()) {
+        if let Ok(body) = std::fs::read_to_string(path) {
+            docs.push(body);
+        }
+    }
+    if let Some(inline) = non_empty(std::env::var("DOCKER_AUTH_CONFIG").ok()) {
+        docs.push(inline);
+    }
+    for path in default_auth_files() {
+        if let Ok(body) = std::fs::read_to_string(path) {
+            docs.push(body);
+        }
+    }
+    docs
+}
+
+/// The default auth-file locations, in the conventional lookup order (runtime
+/// state dir first, then the config-home fallbacks).
+fn default_auth_files() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(rt) = non_empty(std::env::var("XDG_RUNTIME_DIR").ok()) {
+        paths.push(PathBuf::from(rt).join("containers/auth.json"));
+    }
+    if let Some(dc) = non_empty(std::env::var("DOCKER_CONFIG").ok()) {
+        paths.push(PathBuf::from(dc).join("config.json"));
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        let home = PathBuf::from(home);
+        paths.push(home.join(".config/containers/auth.json"));
+        paths.push(home.join(".docker/config.json"));
+    }
+    paths
+}
+
+/// Extract `auths.<host>.auth` from an OCI auth-config document. Pure over the
+/// document text so it can be tested without touching the filesystem or env.
+fn credential_from_auth_json(body: &str, host: &str) -> Option<String> {
+    let json: Value = serde_json::from_str(body).ok()?;
+    let auths = json.get("auths")?.as_object()?;
+    host_keys(host).into_iter().find_map(|key| {
+        auths
+            .get(&key)?
+            .get("auth")
+            .and_then(Value::as_str)
+            .filter(|a| !a.is_empty())
+            .map(str::to_string)
+    })
+}
+
+/// Keys an auth file might store a host under: the bare API host and its
+/// `https://` form, plus Docker Hub's legacy `https://index.docker.io/v1/`.
+fn host_keys(host: &str) -> Vec<String> {
+    let mut keys = vec![host.to_string(), format!("https://{host}")];
+    if host == "registry-1.docker.io" || host == "docker.io" {
+        keys.push("index.docker.io".to_string());
+        keys.push("https://index.docker.io/v1/".to_string());
+    }
+    keys
+}
+
+fn non_empty(v: Option<String>) -> Option<String> {
+    v.filter(|s| !s.is_empty())
 }
 
 #[cfg(test)]
@@ -187,5 +287,48 @@ mod tests {
         assert_eq!(p["realm"], "https://ghcr.io/token");
         assert_eq!(p["service"], "ghcr.io");
         assert_eq!(p["scope"], "repository:acme/service:pull");
+    }
+
+    #[test]
+    fn reads_credential_for_bare_and_url_host_keys() {
+        let doc = r#"{"auths":{"ghcr.io":{"auth":"Z2g6dG9r"}}}"#;
+        assert_eq!(
+            credential_from_auth_json(doc, "ghcr.io").as_deref(),
+            Some("Z2g6dG9r")
+        );
+
+        let url = r#"{"auths":{"https://quay.io":{"auth":"cXVheTp0"}}}"#;
+        assert_eq!(
+            credential_from_auth_json(url, "quay.io").as_deref(),
+            Some("cXVheTp0")
+        );
+    }
+
+    #[test]
+    fn docker_hub_matches_legacy_index_key() {
+        // The API host is `registry-1.docker.io`, but a login stores Docker Hub
+        // under its legacy `https://index.docker.io/v1/` key.
+        let doc = r#"{"auths":{"https://index.docker.io/v1/":{"auth":"ZGg6dA=="}}}"#;
+        assert_eq!(
+            credential_from_auth_json(doc, "registry-1.docker.io").as_deref(),
+            Some("ZGg6dA==")
+        );
+    }
+
+    #[test]
+    fn missing_host_empty_blob_or_malformed_is_none() {
+        let doc = r#"{"auths":{"ghcr.io":{"auth":"Z2g6dG9r"}}}"#;
+        assert_eq!(credential_from_auth_json(doc, "quay.io"), None);
+        // An entry with no usable `auth` (e.g. a credsStore-only record) is a miss.
+        assert_eq!(
+            credential_from_auth_json(r#"{"auths":{"ghcr.io":{"auth":""}}}"#, "ghcr.io"),
+            None
+        );
+        assert_eq!(
+            credential_from_auth_json(r#"{"auths":{"ghcr.io":{}}}"#, "ghcr.io"),
+            None
+        );
+        assert_eq!(credential_from_auth_json("not json", "ghcr.io"), None);
+        assert_eq!(credential_from_auth_json("{}", "ghcr.io"), None);
     }
 }
