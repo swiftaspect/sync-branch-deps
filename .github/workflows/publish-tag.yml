@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       - name: Set up QEMU (for arm64 emulation)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       # `make publish` builds and pushes with podman (podman-specific
       # `build --manifest` and `manifest push --all … docker://…`, which docker
