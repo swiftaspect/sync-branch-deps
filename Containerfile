@@ -4,7 +4,7 @@
 # `--platform linux/amd64,linux/arm64` build each arch compiles natively (via
 # emulation), so no cross-toolchain is needed.
 
-FROM docker.io/library/rust:1@sha256:1f0dbad1df66647807e6952d1db85d0b2bda7606cb2139d82517e4f009967376 AS builder
+FROM docker.io/library/rust:1@sha256:9a2cd304a852f05d3352f75bc2775242371c0169a72dbb40d5d881379d571989 AS builder
 # ring (via rustls/ureq) needs a C toolchain for the musl target; musl-gcc is
 # the native musl compiler in whichever arch the build runs as.
 ENV CC_x86_64_unknown_linux_musl=musl-gcc \
