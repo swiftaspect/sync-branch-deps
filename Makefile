@@ -119,7 +119,7 @@ CONTAINER_VERSION := $(patsubst v%,%,$(BASE_VERSION))
 # sbd is a CLI users pull directly, so rolling `1` (major) and `1.2`
 # (major.minor) tags let them track patches/minors; the immutable `1.2.3`
 # (+ buildstamp/ref) stays reproducible. `latest` is never published — see
-# decisions/0002-container-image-tagging.md.
+# docs/adr/0002-container-image-tagging.md.
 CONTAINER_MAJOR := $(word 1,$(subst ., ,$(CONTAINER_VERSION)))
 CONTAINER_MAJOR_MINOR := $(CONTAINER_MAJOR).$(word 2,$(subst ., ,$(CONTAINER_VERSION)))
 CONTAINER_BASE_TAG := $(CONTAINER_VERSION)-$(BUILDSTAMP)

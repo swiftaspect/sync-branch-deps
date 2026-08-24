@@ -37,7 +37,7 @@ Chosen option: "MADR", because it is a well-structured, widely-adopted, Markdown
 
 ### Confirmation
 
-Significant technical decisions are documented as numbered ADRs in `decisions/`. PRs introducing notable changes should include a corresponding decision record.
+Significant technical decisions are documented as numbered ADRs in `docs/adr/`. PRs introducing notable changes should include a corresponding decision record.
 
 ## More Information
 

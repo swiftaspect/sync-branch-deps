@@ -105,7 +105,7 @@ fn tag_exists(image_prefix: &str, tag: &str) -> Result<bool> {
 
 // ureq::Error is a large enum; returning it by value keeps the status-code match
 // above flat and readable, and this runs a handful of times per invocation.
-// See decisions/0001-unboxed-ureq-error-in-registry-client.md.
+// See docs/adr/0001-unboxed-ureq-error-in-registry-client.md.
 #[allow(clippy::result_large_err)]
 fn head(url: &str, token: Option<&str>) -> std::result::Result<ureq::Response, ureq::Error> {
     let mut req = ureq::head(url).set("Accept", ACCEPT_MANIFESTS);
@@ -170,7 +170,7 @@ fn bearer_token(resp: &ureq::Response, host: &str) -> Result<String> {
 /// history, not by any one engine). Every source stores the credential the same
 /// way — a base64(`user:pass`) blob under `auths.<host>.auth`, which is exactly
 /// an HTTP Basic value — so nothing is decoded or re-encoded. Absence leaves the
-/// caller anonymous (fine for public images). See `decisions/0011`.
+/// caller anonymous (fine for public images). See `docs/adr/0011`.
 fn credential_for(host: &str) -> Option<String> {
     auth_documents()
         .into_iter()
