@@ -2,7 +2,7 @@
 //! A generic machine-readable format any tooling can consume (a Jenkins shell
 //! step, a wrapper script, a log pipeline). Selected with `--output json` /
 //! `SBD_OUTPUT=json`. Deliberately *not* a findings/test format (SARIF, JUnit):
-//! sbd reports progress, not code findings — see decisions/0008.
+//! sbd reports progress, not code findings — see docs/adr/0008.
 
 use crate::reporters::{Level, Location, Reporter};
 

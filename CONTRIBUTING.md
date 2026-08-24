@@ -40,7 +40,7 @@ Adding an ecosystem, a reference location, or an output format is a new file in 
 
 ## Decision records
 
-Notable technical decisions are recorded as [MADR](https://adr.github.io/madr/) files under [`decisions/`](decisions/). If a change makes a non-obvious architectural choice, add one (copy `decisions/template.md`).
+Notable technical decisions are recorded as [MADR](https://adr.github.io/madr/) files under [`docs/adr/`](docs/adr/). If a change makes a non-obvious architectural choice, add one (copy `docs/adr/template.md`).
 
 ## License
 

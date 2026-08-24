@@ -96,7 +96,7 @@ $ make build     # release binary at target/release/sbd
 $ make help       # list targets
 ```
 
-Architectural decisions are recorded under [`decisions/`](decisions/) (MADR format).
+Architectural decisions are recorded under [`docs/adr/`](docs/adr/) (MADR format).
 
 ## License
 
