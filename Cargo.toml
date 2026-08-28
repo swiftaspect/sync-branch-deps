@@ -19,7 +19,7 @@ anyhow = "1"
 regex = "1"
 serde_json = { version = "1", features = ["preserve_order"] }
 serde_yaml = "0.9"
-ureq = "2"
+ureq = "3"
 
 [dev-dependencies]
 tempfile = "3"
