@@ -38,6 +38,18 @@ Adding an ecosystem, a reference location, or an output format is a new file in 
 - Commit messages follow **[Conventional Commits](https://www.conventionalcommits.org/)** (`feat:`, `fix:`, `docs:`, `chore:`, …). Releases and the changelog are generated from them, so the prefix matters.
 - Open PRs against `main`. CI runs `make check`; keep it green.
 
+## Dependency updates
+
+Dependabot watches the crates in `Cargo.toml`, both images in the
+`Containerfile`, and the workflow actions.
+`.github/workflows/dependabot-automerge.yml` merges a pull request unreviewed
+when every check on its head commit passed and the bump is patch or minor;
+majors wait for a person.
+
+Crates and images are `fix` and cut a release, because both Containerfile
+stages end up in the published binary. `dev-dependencies` and actions are
+`chore`.
+
 ## Decision records
 
 Notable technical decisions are recorded as [MADR](https://adr.github.io/madr/) files under [`docs/adr/`](docs/adr/). If a change makes a non-obvious architectural choice, add one (copy `docs/adr/template.md`).
