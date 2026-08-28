@@ -25,7 +25,7 @@ RUN set -eux; \
     cargo build --release --target "$TRIPLE"; \
     install -Dm755 "target/$TRIPLE/release/sbd" /out/sbd
 
-FROM gcr.io/distroless/static-debian12:nonroot@sha256:aef9602f8710ec12bde19d593fed1f76c708531bb7aba205110f1029786ead7b
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 COPY --from=builder /out/sbd /usr/local/bin/sbd
 ENTRYPOINT ["/usr/local/bin/sbd"]
 
