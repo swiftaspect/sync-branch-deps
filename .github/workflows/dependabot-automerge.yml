@@ -1,0 +1,21 @@
+name: Dependabot Auto-Merge
+
+on:
+  workflow_run:
+    workflows: ['Testing']
+    types: [completed]
+
+permissions:
+  checks: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    # Cost filter, not the gate; the reusable workflow re-checks all of it.
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.actor.login == 'dependabot[bot]'
+      && startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+    uses: swiftaspect/gha-workflows/.github/workflows/dependabot-automerge.yml@v1.7.0
+    secrets: inherit
