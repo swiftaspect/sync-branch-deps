@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.2...v0.3.3) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** Bump anyhow from 1.0.103 to 1.0.104 ([4e1b59a](https://github.com/swiftaspect/sync-branch-deps/commit/4e1b59a958f98cf47c122f41ae6f456ef8186a9d))
+
 ## [0.3.2](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.1...v0.3.2) (2026-08-29)
 
 
