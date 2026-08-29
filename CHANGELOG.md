@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.0...v0.3.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** Bump distroless/static-debian12 from `aef9602` to `afa5c87` ([fa3d78c](https://github.com/swiftaspect/sync-branch-deps/commit/fa3d78cd1f33e5a1c6e3ec834111ee41ad28fac7))
+
 ## [0.3.0](https://github.com/swiftaspect/sync-branch-deps/compare/v0.2.0...v0.3.0) (2026-07-04)
 
 
