@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.1...v0.3.2) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** Bump library/rust from `9a2cd30` to `271849e` ([cd971d2](https://github.com/swiftaspect/sync-branch-deps/commit/cd971d227b804fee931e3a8254cb813f1d0b70d0))
+
 ## [0.3.1](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.0...v0.3.1) (2026-08-29)
 
 
