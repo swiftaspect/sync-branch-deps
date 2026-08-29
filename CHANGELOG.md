@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.3...v0.3.4) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** Bump regex from 1.12.4 to 1.13.1 ([64cd17a](https://github.com/swiftaspect/sync-branch-deps/commit/64cd17a2072fba80d64302fd0f6f97668eb910ef))
+
 ## [0.3.3](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.2...v0.3.3) (2026-08-29)
 
 
