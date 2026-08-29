@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.4...v0.3.5) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** Bump serde_json from 1.0.150 to 1.0.151 ([830da88](https://github.com/swiftaspect/sync-branch-deps/commit/830da885a4f474b0044f4c29a4905bba666c5509))
+
 ## [0.3.4](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.3...v0.3.4) (2026-08-29)
 
 
