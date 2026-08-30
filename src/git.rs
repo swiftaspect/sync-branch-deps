@@ -1,17 +1,9 @@
 //! Read the checked-out branch straight from `.git/HEAD` — no `git` binary.
 //!
-//! This is a **fallback** for environments with no `git` on `PATH`: `sbd` runs
-//! in a minimal container (distroless has no `git`) against the consumer repo
-//! mounted at the working directory, and the branch it should resolve for is
-//! already sitting in that repo's `.git/HEAD` — so it reads it itself rather
-//! than making every caller detect and inject `CURRENT_BRANCH`.
-//!
-//! Where `git` *is* available (any host) the caller prefers the binary, which is
-//! authoritative and agnostic to the ref-storage backend. Text-parsing `.git/HEAD`
-//! assumes the classic "files" layout; a repo on the newer `reftable` backend
-//! writes a `refs/heads/.invalid` sentinel here, which we reject (leading-dot
-//! refnames are invalid per `git check-ref-format`) so it degrades to the
-//! default-branch no-op instead of a bogus pin.
+//! The fallback for a minimal container with no `git` on `PATH`, where the
+//! caller cannot run the binary it otherwise prefers. Why that order, what
+//! text-parsing HEAD assumes about the ref-storage backend, and why an
+//! unreadable git dir is an error: `docs/adr/0012` and `docs/adr/0013`.
 
 use std::fmt;
 use std::path::{Path, PathBuf};
