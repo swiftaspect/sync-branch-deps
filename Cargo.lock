@@ -418,7 +418,7 @@ dependencies = [
 
 [[package]]
 name = "sync-branch-deps"
-version = "0.3.6"
+version = "0.3.7"
 dependencies = [
  "anyhow",
  "regex",

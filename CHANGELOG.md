@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.7](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.6...v0.3.7) (2026-08-30)
+
+
+### Bug Fixes
+
+* fail when `.git` names an unreachable git dir ([7f093ca](https://github.com/swiftaspect/sync-branch-deps/commit/7f093ca3e6df817943356fbe156a5d7bba2afdba))
+
 ## [0.3.6](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.5...v0.3.6) (2026-08-30)
 
 
