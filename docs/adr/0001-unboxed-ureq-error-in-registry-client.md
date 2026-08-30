@@ -1,10 +1,16 @@
 ---
-status: accepted
-date: 2026-07-03
+status: deprecated
+date: 2026-08-30
 decision-makers: [Team]
 ---
 
 # Keep `ureq::Error` unboxed in the registry client; suppress `clippy::result_large_err` locally
+
+> Deprecated by the ureq 3 upgrade. `Error::StatusCode` carries only a status
+> code, so the result is no longer large, `result_large_err` does not fire, and
+> the `#[allow]` this ADR justified has been removed. The registry client also
+> no longer branches on the error type at all: it reads the status off the
+> response, because the 401 challenge is only reachable that way.
 
 ## Context and Problem Statement
 
