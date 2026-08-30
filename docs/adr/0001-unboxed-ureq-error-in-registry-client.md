@@ -8,9 +8,9 @@ decision-makers: [Team]
 
 > Deprecated by the ureq 3 upgrade. `Error::StatusCode` carries only a status
 > code, so the result is no longer large, `result_large_err` does not fire, and
-> the `#[allow]` this ADR justified has been removed. The registry client also
-> no longer branches on the error type at all: it reads the status off the
-> response, because the 401 challenge is only reachable that way.
+> the `#[allow]` this ADR justified has been removed. The client no longer
+> branches on the error type at all. For the shape that replaced it, see
+> [0013](0013-http-status-as-data-in-the-registry-client.md).
 
 ## Context and Problem Statement
 
