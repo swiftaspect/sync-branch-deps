@@ -73,7 +73,7 @@ $ sbd verify               # PR gate: exit non-zero if any branch pin remains
 - `sbd` only resolves and rewrites — it **never runs a package manager**. After `sync`, run your own install to refresh the lockfile.
 - `verify` reports each offending pin with its file and line; under GitHub Actions it emits `::error` annotations that land inline on the diff.
 
-Output auto-detects (plain locally, GitHub Actions commands in CI); force it with `--output <plain|color|github|json|quiet>` or `$SBD_OUTPUT`. The branch is detected as `$CURRENT_BRANCH`, else the `git` binary, else `.git/HEAD` read directly (so it works in a minimal container with no `git`), else `$DEFAULT_BRANCH` (default `main`); set `CURRENT_BRANCH` to override.
+Output auto-detects (plain locally, GitHub Actions commands in CI); force it with `--output <plain|color|github|json|quiet>` or `$SBD_OUTPUT`. The branch is detected as `$CURRENT_BRANCH`, else the `git` binary, else `.git/HEAD` read directly (so it works in a minimal container with no `git`), else `$DEFAULT_BRANCH` (default `main`); set `CURRENT_BRANCH` to override. If `.git` names a git dir that can't be read from here — a worktree mounted into a container without it — `sync` fails rather than falling back, since the branch is unknown, not absent.
 
 ## Authentication
 
@@ -85,6 +85,35 @@ Branch artifacts are usually **private**, so resolution needs credentials. `sbd`
 ## Install
 
 Download the binary for your platform from the [latest release](https://github.com/swiftaspect/sync-branch-deps/releases) and put it on your `PATH` as `sbd`. (A `cargo install` path may follow.)
+
+### As a container
+
+`sbd` also ships as an image, so a container engine is the only requirement. The image is distroless and declares no working directory of its own: mount the consumer repo and point `-w` at it.
+
+```console
+$ docker run --rm -w /repo -v "$PWD":/repo:z \
+    --user "$(id -u):$(id -g)" \
+    ghcr.io/swiftaspect/sync-branch-deps:0.3 sync
+```
+
+- **Write access.** `sync` rewrites `package.json` and compose files inside the mount, and the image runs as its own non-root user — map your own user through with `--user`. Rootless podman also needs `--userns=keep-id`.
+- **Credentials** come from the host, through the sources listed under [Authentication](#authentication). Being logged in is enough for a host run; for a container, pass the auth file inline with `-e DOCKER_AUTH_CONFIG="$(cat "${REGISTRY_AUTH_FILE:-$HOME/.docker/config.json}")"`, and npm's token as `-e NPM_TOKEN`.
+- **Tags.** `:0.3` tracks a minor line and `:0.3.6` pins exactly; `latest` is deliberately not published ([0002](docs/adr/0002-container-image-tagging.md)).
+
+#### Linked worktrees and submodules
+
+In a linked worktree or a submodule, `.git` is a pointer file naming a git dir **outside** the working tree, so a container that mounts only the working tree cannot read `HEAD` there. Mount that dir at its own path as well:
+
+```console
+$ GIT_DIR_MOUNT=""
+$ test -f .git && GD="$(git rev-parse --absolute-git-dir)" && GIT_DIR_MOUNT="-v $GD:$GD:ro,z"
+
+$ docker run --rm -w /repo -v "$PWD":/repo:z $GIT_DIR_MOUNT \
+    --user "$(id -u):$(id -g)" \
+    ghcr.io/swiftaspect/sync-branch-deps:0.3 sync
+```
+
+`test -f .git` is the whole condition: true in a worktree or submodule, false in a plain checkout, whose `.git` is a directory already inside the mount. Setting `-e CURRENT_BRANCH=…` works just as well. Without either, `sbd` cannot determine the branch and **fails** saying so, rather than resolving as if on the default branch ([0013](docs/adr/0013-fail-on-unreachable-git-dir.md)).
 
 ## Development
 
