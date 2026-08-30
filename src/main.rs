@@ -18,20 +18,25 @@ fn default_branch() -> String {
 /// then the `git` binary (authoritative, ref-backend-agnostic — used wherever
 /// git is on `PATH`), then `.git/HEAD` read directly (the fallback for a minimal
 /// container with no git), then the default branch.
-fn current_branch(root: &Path) -> String {
+///
+/// An unreachable git dir is an error rather than a fallback. `.git` is there
+/// and names a git dir we cannot read, so the branch is unknown, not absent.
+/// Defaulting there would turn a broken mount into a silent no-op on exit 0.
+fn current_branch(root: &Path) -> Result<String, git::NoBranch> {
     if let Ok(b) = env::var("CURRENT_BRANCH") {
         let b = b.trim().to_string();
         if !b.is_empty() {
-            return b;
+            return Ok(b);
         }
     }
     if let Some(b) = git_binary_branch() {
-        return b;
+        return Ok(b);
     }
-    if let Some(b) = git::head_branch(root) {
-        return b;
+    match git::head_branch(root) {
+        Ok(b) => Ok(b),
+        Err(e @ git::NoBranch::UnreachableGitDir(_)) => Err(e),
+        Err(_) => Ok(default_branch()),
     }
-    default_branch()
 }
 
 /// `git rev-parse --abbrev-ref HEAD`, or `None` if git isn't on `PATH`, the call
@@ -72,14 +77,17 @@ fn run(command: Command, reporter: &dyn Reporter) -> i32 {
         }
     };
     let clean = match command {
-        Command::Sync { dry_run } => sync_branch_deps::sync(
-            &root,
-            &current_branch(&root),
-            &default_branch(),
-            dry_run,
-            reporter,
-        )
-        .map(|()| true),
+        Command::Sync { dry_run } => {
+            let branch = match current_branch(&root) {
+                Ok(b) => b,
+                Err(e) => {
+                    reporter.error(&e.to_string());
+                    return 1;
+                }
+            };
+            sync_branch_deps::sync(&root, &branch, &default_branch(), dry_run, reporter)
+                .map(|()| true)
+        }
         Command::Verify => sync_branch_deps::verify(&root, reporter),
     };
     match clean {

@@ -38,3 +38,5 @@ This confines the one non-future-proof piece (text-parsing HEAD) to the single e
 * Good, because the authoritative git binary is still preferred wherever it exists, so host runs are backend-agnostic and future-proof.
 * Neutral, because in-container detection assumes the "files" ref layout; a `reftable` checkout degrades to the default-branch no-op (revisit only if reftable-in-container becomes real).
 * Neutral, because `.git` as a worktree/submodule pointer file (`gitdir: …`) is followed, but more exotic layouts fall through to the default.
+
+Refined by [0013](0013-fail-on-unreachable-git-dir.md): following the pointer is not enough when its target lies outside the mount, and that case now fails instead of falling through.
