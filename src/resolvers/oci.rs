@@ -83,41 +83,59 @@ pub fn parse_bearer_challenge(header: &str) -> BTreeMap<String, String> {
 fn tag_exists(image_prefix: &str, tag: &str) -> Result<bool> {
     let (host, repo) = split_image_prefix(image_prefix);
     let url = format!("https://{host}/v2/{repo}/manifests/{tag}");
-    match head(&url, None) {
-        Ok(_) => Ok(true),
-        Err(ureq::Error::Status(404, _)) => Ok(false),
-        Err(ureq::Error::Status(401, resp)) => {
-            let token =
-                bearer_token(&resp, &host).with_context(|| format!("authenticating to {host}"))?;
-            match head(&url, Some(&token)) {
-                Ok(_) => Ok(true),
-                Err(ureq::Error::Status(404, _)) => Ok(false),
-                Err(ureq::Error::Status(code, _)) => {
-                    bail!("{image_prefix}:{tag} → HTTP {code} after auth")
-                }
-                Err(e) => Err(e).with_context(|| format!("checking {image_prefix}:{tag}")),
+    let agent = registry_agent();
+    let ctx = || format!("checking {image_prefix}:{tag}");
+
+    let resp = head(&agent, &url, None).with_context(ctx)?;
+    match resp.status().as_u16() {
+        401 => {
+            let token = bearer_token(&agent, &resp, &host)
+                .with_context(|| format!("authenticating to {host}"))?;
+            let resp = head(&agent, &url, Some(&token)).with_context(ctx)?;
+            match resp.status().as_u16() {
+                404 => Ok(false),
+                _ if resp.status().is_success() => Ok(true),
+                code => bail!("{image_prefix}:{tag} → HTTP {code} after auth"),
             }
         }
-        Err(ureq::Error::Status(code, _)) => bail!("{image_prefix}:{tag} → HTTP {code}"),
-        Err(e) => Err(e).with_context(|| format!("checking {image_prefix}:{tag}")),
+        404 => Ok(false),
+        _ if resp.status().is_success() => Ok(true),
+        code => bail!("{image_prefix}:{tag} → HTTP {code}"),
     }
 }
 
-// ureq::Error is a large enum; returning it by value keeps the status-code match
-// above flat and readable, and this runs a handful of times per invocation.
-// See docs/adr/0001-unboxed-ureq-error-in-registry-client.md.
-#[allow(clippy::result_large_err)]
-fn head(url: &str, token: Option<&str>) -> std::result::Result<ureq::Response, ureq::Error> {
-    let mut req = ureq::head(url).set("Accept", ACCEPT_MANIFESTS);
+// A 401 carries the WWW-Authenticate challenge this client has to read, and
+// ureq's StatusCode error holds only the number. Non-2xx therefore has to
+// arrive as a response rather than an error.
+fn registry_agent() -> ureq::Agent {
+    ureq::Agent::new_with_config(
+        ureq::Agent::config_builder()
+            .http_status_as_error(false)
+            .build(),
+    )
+}
+
+fn head(
+    agent: &ureq::Agent,
+    url: &str,
+    token: Option<&str>,
+) -> std::result::Result<ureq::http::Response<ureq::Body>, ureq::Error> {
+    let mut req = agent.head(url).header("Accept", ACCEPT_MANIFESTS);
     if let Some(t) = token {
-        req = req.set("Authorization", &format!("Bearer {t}"));
+        req = req.header("Authorization", format!("Bearer {t}"));
     }
     req.call()
 }
 
-fn bearer_token(resp: &ureq::Response, host: &str) -> Result<String> {
+fn bearer_token(
+    agent: &ureq::Agent,
+    resp: &ureq::http::Response<ureq::Body>,
+    host: &str,
+) -> Result<String> {
     let challenge = resp
-        .header("WWW-Authenticate")
+        .headers()
+        .get("WWW-Authenticate")
+        .and_then(|v| v.to_str().ok())
         .context("registry returned 401 without a WWW-Authenticate challenge")?;
     let params = parse_bearer_challenge(challenge);
     let realm = params
@@ -139,14 +157,15 @@ fn bearer_token(resp: &ureq::Response, host: &str) -> Result<String> {
     // which an anonymous token carries no pull scope — the manifest HEAD would
     // then 401 again. With no credential configured we stay anonymous, which
     // still resolves public images. See credential source order in `credential_for`.
-    let mut req = ureq::get(&url);
+    let mut req = agent.get(&url);
     if let Some(cred) = credential_for(host) {
-        req = req.set("Authorization", &format!("Basic {cred}"));
+        req = req.header("Authorization", format!("Basic {cred}"));
     }
-    let body = req
-        .call()
-        .context("requesting registry token")?
-        .into_string()?;
+    let mut resp = req.call().context("requesting registry token")?;
+    if !resp.status().is_success() {
+        bail!("registry token endpoint → HTTP {}", resp.status().as_u16());
+    }
+    let body = resp.body_mut().read_to_string()?;
     let json: serde_json::Value =
         serde_json::from_str(&body).context("parsing registry token response")?;
     json.get("token")

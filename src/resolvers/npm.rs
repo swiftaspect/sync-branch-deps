@@ -142,14 +142,14 @@ fn fetch_dist_tag(
         registry.trim_end_matches('/'),
         name.replace('/', "%2F")
     );
-    let mut req = ureq::get(&url).set("Accept", "application/json");
+    let mut req = ureq::get(&url).header("Accept", "application/json");
     if let Some(t) = token {
-        req = req.set("Authorization", &format!("Bearer {t}"));
+        req = req.header("Authorization", format!("Bearer {t}"));
     }
     match req.call() {
-        Ok(resp) => Ok(dist_tag(&resp.into_string()?, slug)),
-        Err(ureq::Error::Status(404, _)) => Ok(None),
-        Err(ureq::Error::Status(code, _)) => bail!("npm registry {url} → HTTP {code}"),
+        Ok(mut resp) => Ok(dist_tag(&resp.body_mut().read_to_string()?, slug)),
+        Err(ureq::Error::StatusCode(404)) => Ok(None),
+        Err(ureq::Error::StatusCode(code)) => bail!("npm registry {url} → HTTP {code}"),
         Err(e) => Err(e).with_context(|| format!("querying npm registry for {name}")),
     }
 }
