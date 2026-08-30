@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.6](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.5...v0.3.6) (2026-08-30)
+
+
+### Bug Fixes
+
+* **deps:** Bump ureq from 2.12.1 to 3.4.0 ([1535716](https://github.com/swiftaspect/sync-branch-deps/commit/15357162d98b1060957ae0a1aa0bf559a4ce6a99))
+* port the registry clients to the ureq 3 API ([80d229e](https://github.com/swiftaspect/sync-branch-deps/commit/80d229eb25e265f5f851ae26ffbb6baedb344398))
+
 ## [0.3.5](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.4...v0.3.5) (2026-08-29)
 
 
