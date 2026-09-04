@@ -13,7 +13,7 @@ jobs:
   release:
     # release-please: maintains a release PR; on merge it tags + creates the
     # GitHub Release (which triggers publish-tag.yml).
-    uses: swiftaspect/gha-workflows/.github/workflows/release.yml@v1.5.0
+    uses: swiftaspect/gha-workflows/.github/workflows/release.yml@v1.8.1
     with:
       release-type: rust
     secrets: inherit
