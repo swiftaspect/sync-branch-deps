@@ -17,5 +17,5 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
       && github.event.workflow_run.actor.login == 'dependabot[bot]'
       && startsWith(github.event.workflow_run.head_branch, 'dependabot/')
-    uses: swiftaspect/gha-workflows/.github/workflows/dependabot-automerge.yml@v1.7.0
+    uses: swiftaspect/gha-workflows/.github/workflows/dependabot-automerge.yml@v1.8.1
     secrets: inherit
