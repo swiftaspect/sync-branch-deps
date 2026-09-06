@@ -28,7 +28,7 @@ jobs:
       || !startsWith(github.event.head_commit.message, 'chore(main): release')
     # sbd has no sibling branch deps to gate or publish, so this just runs
     # `make check` (fmt + clippy + tests, in a container).
-    uses: swiftaspect/gha-workflows/.github/workflows/ci.yml@v1.5.0
+    uses: swiftaspect/gha-workflows/.github/workflows/ci.yml@v1.9.0
     with:
       makefile-override-file: .github/ci.override.mk
     secrets: inherit
