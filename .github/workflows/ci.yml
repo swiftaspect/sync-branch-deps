@@ -21,6 +21,11 @@ permissions:
 
 jobs:
   ci:
+    # A release-please commit only moves version files the previous main run
+    # already tested.
+    if: >-
+      github.event_name != 'push'
+      || !startsWith(github.event.head_commit.message, 'chore(main): release')
     # sbd has no sibling branch deps to gate or publish, so this just runs
     # `make check` (fmt + clippy + tests, in a container).
     uses: swiftaspect/gha-workflows/.github/workflows/ci.yml@v1.5.0
