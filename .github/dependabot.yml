@@ -4,6 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Paused for September 2026 to stay inside the included Actions minutes.
+    # Delete this line to resume version updates.
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "fix"
       prefix-development: "chore"
@@ -15,6 +18,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Paused for September 2026 to stay inside the included Actions minutes.
+    # Delete this line to resume version updates.
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "fix"
       include: "scope"
@@ -23,6 +29,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Paused for September 2026 to stay inside the included Actions minutes.
+    # Delete this line to resume version updates.
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "chore"
       include: "scope"
