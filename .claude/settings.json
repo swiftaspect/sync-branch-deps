@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-managed-files.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking managed files"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-test-files.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking test files on a fix branch"
+          }
+        ]
+      }
+    ]
+  }
+}
