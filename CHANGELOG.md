@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.8](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.7...v0.3.8) (2026-11-09)
+
+
+### Bug Fixes
+
+* **deps:** Bump rustls from 0.23.41 to 0.23.46 ([326f006](https://github.com/swiftaspect/sync-branch-deps/commit/326f006078f2e7c4e312c4675400d400a8f679b2))
+
 ## [0.3.7](https://github.com/swiftaspect/sync-branch-deps/compare/v0.3.6...v0.3.7) (2026-08-30)
 
 
